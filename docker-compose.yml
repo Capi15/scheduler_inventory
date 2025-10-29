@@ -1,39 +1,55 @@
 services:
-
-  mongo:
+  mongo-inventory:
     image: cmerbruno/custom-mongo:v01
-    restart: always
-    container_name: mongo-scheduler-inventory 
+    container_name: mongo-inventory
+    restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongoadmin
       MONGO_INITDB_ROOT_PASSWORD: mongoadmin
     ports:
-      - "2037:27017"
+      - "2037:27017"    
     volumes:
       - ./workspace:/workspace
       - type: volume
         source: mongodb_data_volume
         target: /data/db
-        
+    healthcheck:
+      test: ["CMD-SHELL", "sleep 5 && ps aux | grep -q '[m]ongod'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   mongo-express:
     image: cmerbruno/custom-mongo-express:v02
-    container_name: mongo-express-scheduler-inventory
+    container_name: express_inventory
     restart: always
     ports:
-      - "2038:8081"
+      - "3037:8081"
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_SERVER: mongo-inventory
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: changeme
-      #ME_CONFIG_MONGODB_AUTH_DATABASE: admin
       ME_CONFIG_MONGODB_ADMINUSERNAME: mongoadmin
       ME_CONFIG_MONGODB_ADMINPASSWORD: mongoadmin
-      ME_CONFIG_MONGODB_URL: mongo://mongoadmin:mongoadmin@mongo:2037/
-      
+      ME_CONFIG_MONGODB_URL: mongodb://mongoadmin:mongoadmin@mongo-inventory:27017/?authSource=admin
     depends_on:
-      - mongo
+      - mongo-inventory
+
+  # scheduler-inventoy:
+  #   build: .
+  #   container_name: scheduler-inventory
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "3024:3024"
+  #   volumes:
+  #     - uploads_storage:/uploads
+  #   depends_on:
+  #     mongo-inventory:
+  #       condition: service_healthy
 
 volumes:
   mongodb_data_volume:
-    driver: local    
-    
+    driver: local
+  uploads_storage:
